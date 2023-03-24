@@ -74,6 +74,33 @@ final class MiddlewareTests: XCTestCase {
             print(res.headers)
         }
     }
+    
+    func testCORSMiddlewareWildcards() throws {
+        let app = Application(.testing)
+        defer { app.shutdown() }
+
+        app.grouped(
+            CORSMiddleware(configuration: .init(
+                allowedOrigin: .anyWildcard([
+                    NSRegularExpression("https://.*\\.foo\\.com")
+                ]),
+                allowedMethods:  [.GET, .POST, .PUT, .OPTIONS, .DELETE, .PATCH],
+                allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin, .init("auth")],
+                allowCredentials: true
+            ))
+        ).get("order") { req -> String in
+            return "done"
+        }
+
+        try app.testable().test(.GET, "/order", headers: ["Origin": "https://some.foo.com"]) { res in
+            XCTAssertEqual(res.status, .ok)
+            XCTAssertEqual(res.body.string, "done")
+            XCTAssertEqual(res.headers[.vary], [])
+            XCTAssertEqual(res.headers[.accessControlAllowOrigin], ["https://some.foo.com"])
+            XCTAssertEqual(res.headers[.accessControlAllowHeaders], ["accept, authorization, content-type, origin, x-requested-with, user-agent, access-control-allow-origin, auth"])
+            print(res.headers)
+        }
+    }
 
     func testCORSMiddlewareNoVariationByRequstOriginAllowed() throws {
         let app = Application(.testing)

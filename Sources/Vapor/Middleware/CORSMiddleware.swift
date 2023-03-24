@@ -26,6 +26,9 @@ public final class CORSMiddleware: Middleware {
         
         /// A list of allowable origins.
         case any([String])
+        
+        /// A list of allowable origins.
+        case anyWildcard([NSRegularExpression])
 
         /// Uses custom string provided as an associated value.
         case custom(String)
@@ -44,6 +47,16 @@ public final class CORSMiddleware: Middleware {
                     return ""
                 }
                 return origins.contains(origin) ? origin : ""
+            case .anyWildcard(let expressions):
+                guard let origin = req.headers[.origin].first else {
+                    return ""
+                }
+                for expression in expressions {
+                    if expression.matches(origin) {
+                        return origin
+                    }
+                }
+                return ""
             case .custom(let string):
                 return string
             }
